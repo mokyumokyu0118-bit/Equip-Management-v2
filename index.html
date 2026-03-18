@@ -86,13 +86,13 @@
     .hourly-sticky-item { position:sticky; left:80px; z-index:5; background:#fff; min-width:180px; max-width:180px; border-right:1px solid var(--border2); text-align:left; }
     thead .hourly-sticky-date, thead .hourly-sticky-item { z-index:15; background:#f1f5f9; text-align:center; border-bottom: 1px solid var(--border2); }
 
-    /* ★場所ごとの色分け */
-    .bg-rear2 { background-color: rgba(6, 182, 212, 0.08) !important; }
-    .bg-rear3 { background-color: rgba(37, 99, 235, 0.08) !important; }
-    .bg-ps1f-old { background-color: rgba(245, 158, 11, 0.08) !important; }
-    .bg-ps1f-new { background-color: rgba(225, 29, 72, 0.08) !important; }
-    .bg-ps2f { background-color: rgba(124, 58, 237, 0.08) !important; }
-    .bg-ds { background-color: rgba(22, 163, 74, 0.08) !important; }
+    /* ★場所ごとの色分け (無彩色・グレー系に統一) */
+    .bg-rear2 { background-color: rgba(241, 245, 249, 0.7) !important; } /* 極薄いブルーグレー */
+    .bg-rear3 { background-color: rgba(226, 232, 240, 0.4) !important; } /* 少し濃いブルーグレー */
+    .bg-ps1f-old { background-color: rgba(249, 250, 251, 0.9) !important; } /* ほぼ白 */
+    .bg-ps1f-new { background-color: rgba(243, 244, 246, 0.6) !important; } /* 薄いグレー */
+    .bg-ps2f { background-color: rgba(229, 231, 235, 0.4) !important; } /* 少し濃いグレー */
+    .bg-ds { background-color: rgba(250, 250, 250, 0.8) !important; } /* 白に近いグレー */
 
     /* Top scroll bar */
     .topScroll{ overflow-x:auto; overflow-y:hidden; height:14px; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow: var(--shadow2); }
@@ -100,7 +100,7 @@
 
     /* List table */
     .listTable{ width:100%; border:1px solid var(--border); border-radius:14px; overflow:hidden; background:#fff; box-shadow: var(--shadow2); }
-    .listTable table{width:100%;min-width:920px;background:#fff}
+    .listTable table{width:100%;min-width:960px;background:#fff}
     .listTable th{background:#f1f5f9;position:sticky;top:0;z-index:2}
     .listTable th,.listTable td{padding:10px;font-size:14px; text-align:center; vertical-align:middle;}
     .statusBtn{ width:auto; padding:8px 12px; border-radius:12px; border:1px solid var(--border); background:#fff; font-size:12.5px; font-weight:800; cursor:pointer; }
@@ -226,6 +226,7 @@
                 <th style="width:40px;">✓</th>
                 <th>利用期間 / 時間</th>
                 <th>場所 / 備品</th>
+                <th>数量</th>
                 <th>団体名</th>
                 <th>伝票</th>
                 <th>状態</th>
@@ -281,7 +282,10 @@
       <div style="flex:1;"><label>終了時間 (9:00~21:00)</label><input id="modalEndTime" type="time" min="09:00" max="21:00" step="1800"/></div>
     </div>
 
-    <div><label>団体名</label><input id="modalGroup" placeholder="例：軽音楽研究会IPC" /></div>
+    <div style="display:flex; gap:10px;">
+      <div style="flex:3;"><label>団体名</label><input id="modalGroup" placeholder="例：軽音楽研究会IPC" /></div>
+      <div style="flex:1;"><label>数量 (個/脚)</label><input id="modalQuantity" type="number" min="1" placeholder="1" /></div>
+    </div>
     <div><label>状態</label><select id="modalStatus"><option value="reserved">予約（未貸出）</option><option value="loan">貸出中</option><option value="returned">返却済</option></select></div>
     <div><label>伝票番号（任意）</label><input id="modalSlip" placeholder="例：A-12345" /></div>
     <div id="modalMsg" class="msg"></div>
@@ -475,6 +479,7 @@ const STORAGE_KEY = "equip_reservations_v4";
       startTime: "09:00",
       endTime: "21:00",
       group: r.group || "",
+      quantity: r.quantity || 1, // 数量のデフォルト値
       slipNo: r.slipNo || "",
       status: r.status || "reserved",
       createdAt: r.createdAt || new Date().toISOString()
@@ -545,7 +550,8 @@ function renderDailyGrid(){
       if(res){
         const isStart = (res.startDate === dateStr || d===1);
         const overdue = (res.status==="loan" && res.endDate < ymd(new Date())) ? "overdue" : "";
-        tbody += `<td class="cell ${res.status} ${overdue}" onclick="openModal('${res.id}')" title="${res.group}\n${res.startDate}~${res.endDate}">${isStart ? escapeHtml(res.slipNo||'済') : ''}</td>`;
+        const qtyTxt = res.quantity > 1 ? `<span style="font-size:10px; margin-left:2px;">(x${res.quantity})</span>` : "";
+        tbody += `<td class="cell ${res.status} ${overdue}" onclick="openModal('${res.id}')" title="数量: ${res.quantity||1}\n${res.group}\n${res.startDate}~${res.endDate}">${isStart ? escapeHtml(res.slipNo||'済') + qtyTxt : ''}</td>`;
       } else {
         tbody += `<td class="cell" onclick="openNewModal(${it.id}, '${dateStr}')"></td>`;
       }
@@ -565,7 +571,6 @@ function renderHourlyGrid(category){
 
   let thead = `<tr><th class="hourly-sticky-date">日付</th><th class="hourly-sticky-item">場所/備品</th>`;
   for(let h=9; h<=21; h++) {
-    // 21時以降の枠（例: 21:00〜22:00）が不要ならループは20までにする運用もあるが、台帳に合わせて21まで作成
     thead += `<th>${h}:00</th>`; 
   }
   thead += `</tr>`;
@@ -599,7 +604,8 @@ function renderHourlyGrid(category){
         if(res){
           const isStart = (res.startTime <= hourStr && res.startTime > `${pad2(h-1)}:00`);
           const overdue = (res.status==="loan" && dateStr <= ymd(new Date()) && res.endTime < pad2(new Date().getHours())+":00") ? "overdue" : "";
-          tbody += `<td class="cell ${res.status} ${overdue}" onclick="openModal('${res.id}')" title="${res.group} (${res.startTime}~${res.endTime})">${isStart ? '済' : ''}</td>`;
+          const qtyTxt = res.quantity > 1 ? `<span style="font-size:10px; margin-left:2px;">(x${res.quantity})</span>` : "";
+          tbody += `<td class="cell ${res.status} ${overdue}" onclick="openModal('${res.id}')" title="数量: ${res.quantity||1}\n${res.group} (${res.startTime}~${res.endTime})">${isStart ? '済' + qtyTxt : ''}</td>`;
         } else {
           tbody += `<td class="cell ${colorClass}" onclick="openNewModal(${it.id}, '${dateStr}', '${hourStr}')"></td>`;
         }
@@ -690,6 +696,7 @@ function renderList(){
       <td></td>
       <td>${timeStr}</td>
       <td>${it?it.name:"不明"}</td>
+      <td>${r.quantity || 1}</td>
       <td>${escapeHtml(r.group)}</td>
       <td>${escapeHtml(r.slipNo)}</td>
       <td><span class="badge ${r.status}">${statusLabel(r.status)}</span></td>
@@ -746,6 +753,7 @@ function openNewModal(itemId, dateStr, hourStr = "09:00"){
   document.getElementById("modalStartTime").value = hourStr;
   document.getElementById("modalEndTime").value = pad2(parseInt(hourStr)+1)+":00";
   document.getElementById("modalGroup").value = "";
+  document.getElementById("modalQuantity").value = "1"; // 初期数量
   document.getElementById("modalSlip").value = "";
   document.getElementById("modalStatus").value = "reserved";
   
@@ -775,6 +783,7 @@ function openModal(id){
   document.getElementById("modalStartTime").value = res.startTime;
   document.getElementById("modalEndTime").value = res.endTime;
   document.getElementById("modalGroup").value = res.group;
+  document.getElementById("modalQuantity").value = res.quantity || 1;
   document.getElementById("modalSlip").value = res.slipNo;
   document.getElementById("modalStatus").value = res.status;
   
@@ -830,6 +839,7 @@ document.getElementById("modalSave").onclick = () => {
   const st = baseItem.category==="av" ? "09:00" : document.getElementById("modalStartTime").value;
   const et = baseItem.category==="av" ? "21:00" : document.getElementById("modalEndTime").value;
   const group = document.getElementById("modalGroup").value.trim();
+  const quantity = parseInt(document.getElementById("modalQuantity").value) || 1;
   const slipNo = document.getElementById("modalSlip").value.trim();
   const status = document.getElementById("modalStatus").value;
   
@@ -861,7 +871,7 @@ document.getElementById("modalSave").onclick = () => {
   targetIds.forEach(id => {
     let cur = fromYmd(start), endD = fromYmd(end);
     while(cur.getTime() <= endD.getTime()){
-      list.push({ id: "res_"+Math.random().toString(36).substr(2,9), itemId: id, date: ymd(cur), startDate: start, endDate: end, startTime: st, endTime: et, group, slipNo, status, createdAt: now });
+      list.push({ id: "res_"+Math.random().toString(36).substr(2,9), itemId: id, date: ymd(cur), startDate: start, endDate: end, startTime: st, endTime: et, group, quantity, slipNo, status, createdAt: now });
       cur.setDate(cur.getDate()+1);
     }
   });
@@ -960,7 +970,8 @@ function showTomorrowPopup(){
     body.innerHTML = `<div class="dailyNote">未返却はありませんか？明日の予約は以下の通りです。</div>`;
     list.forEach(r => {
       const it = findItem(r.itemId);
-      body.innerHTML += `<div class="dailyRow"><div class="dailyTop"><div class="dailyItem">${it?it.name:""}</div><span class="badge ${r.status}">${statusLabel(r.status)}</span></div><div class="dailyMeta">団体: ${escapeHtml(r.group)}<br>時間: ${r.startTime}~${r.endTime}</div></div>`;
+      const qtyTxt = r.quantity > 1 ? ` (数量: ${r.quantity})` : "";
+      body.innerHTML += `<div class="dailyRow"><div class="dailyTop"><div class="dailyItem">${it?it.name:""}</div><span class="badge ${r.status}">${statusLabel(r.status)}</span></div><div class="dailyMeta">団体: ${escapeHtml(r.group)}${qtyTxt}<br>時間: ${r.startTime}~${r.endTime}</div></div>`;
     });
   }
   document.getElementById("dailyModal").showModal();
